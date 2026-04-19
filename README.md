@@ -26,13 +26,13 @@
 - 階級区分の CSV 一式
 - [requirements.txt](requirements.txt)
 - [render.yaml](render.yaml)
+- 配布用キャッシュの [data](data)
 
 ### 任意・保守用
 
 - [make_word.py](make_word.py)
 - [pdf_to_images.py](pdf_to_images.py)
 - [convert_kubun.py](convert_kubun.py)
-- 月別キャッシュの [data](data)
 
 ## ローカル起動
 
@@ -75,5 +75,6 @@
 
 ## 備考
 
-- 初回アクセス時はデータ取得と整形に少し時間がかかることがあります。
+- 主要な月別 CSV は [data](data) に同梱しており、初回表示の高速化に使います。
+- [data](data) に無い年月だけ、アクセス時に自動取得と整形を行います。
 - 気象庁サイトへのアクセス状況により応答時間が前後します。

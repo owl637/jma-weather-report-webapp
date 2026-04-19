@@ -10,9 +10,7 @@ pdf_images/*
 *.pdf
 *.xlsx
 
-# Generated monthly cache data from JMA
-# Keep source CSV/config at repo root, but exclude regenerated monthly folders
-/data/*/
+# Bundled monthly cache data is intentionally tracked for faster startup
 
 # Local maintenance scripts not needed for deployment
 convert_kubun.py
