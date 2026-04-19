@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ year }}年{{ month }}月 大東島地方の天候</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% macro render_table(section) -%}
+    <p class="table-caption">{{ section.caption }}</p>
+    <div class="table-wrap">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    {% for column in section.columns %}
+                    <th class="{{ section.column_classes[loop.index0] }}">{{ column | replace('(', '<br>(') | replace('（', '<br>（') | safe }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in section.rows %}
+                <tr>
+                    {% for cell in row %}
+                    <td class="{{ section.column_classes[loop.index0] }} {{ cell.class_name }}">
+                        {% if 'slash-cell' in cell.class_name %}
+                        <svg class="slash-mark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                            <line x1="0" y1="100" x2="100" y2="0"></line>
+                        </svg>
+                        {% else %}
+                        {{ cell.text }}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {%- endmacro %}
+
+    <div class="screen-toolbar">
+        <form method="get" class="toolbar-form">
+            <label>
+                年
+                <input type="number" name="year" value="{{ year }}">
+            </label>
+            <label>
+                月
+                <input type="number" name="month" min="1" max="12" value="{{ month }}">
+            </label>
+            <button type="submit">表示更新</button>
+        </form>
+        <p>生成時刻: {{ generated_at }} / 印刷でPDF化できます</p>
+    </div>
+
+    <div class="report-stack">
+        <section class="paper">
+            <header class="cover-header">
+                <h1>{{ year }}年（令和{{ reiwa }}年）{{ month }}月<br>大東島地方の天候</h1>
+                <div class="office-meta">
+                    令和{{ report_date.reiwa }}年{{ report_date.month }}月{{ report_date.day }}日<br>
+                    {{ observatory_name }}
+                </div>
+            </header>
+
+            <section class="topic-block">
+                <h2><span class="bullet">●</span>天気概況（月のまとめ）</h2>
+                {% for paragraph in month_section.overview %}
+                <p class="jp-paragraph">{{ paragraph }}</p>
+                {% endfor %}
+
+                {{ render_table(month_section) }}
+
+                <ul class="note-list">
+                    <li>階級は、気象官署（南大東）のみ記載します。</li>
+                    <li>階級は、1991年～2020年における30年間の観測値をもとに、「低い（少ない）」、「平年並」、「高い（多い）」の各階級に等しい割合で振り分けられるように決めています。値が30年間の下位または上位10％に相当する場合には、「かなり低い（少ない）」または「かなり高い（多い）」と表現しています。</li>
+                    <li>階級は、1991年～2020年の観測値をもとに、出現率から各階級に振り分けられます。</li>
+                    <li>")"付きの値は準正常値（統計を行う対象資料が許容範囲で欠けている）を意味します。</li>
+                    <li>"]"付きの値は資料不足値（統計を行う対象資料が許容範囲を超えて欠けている）を意味し、階級についても値と同様の品質となります。</li>
+                    <li>"X"は欠測を意味しています。</li>
+                </ul>
+            </section>
+            <div class="page-number">1/{{ total_pages }}</div>
+        </section>
+
+        <section class="paper">
+            <section class="topic-block no-top-space">
+                <h2><span class="bullet">●</span>天気概況（旬別）</h2>
+                {% for section in ten_day_sections %}
+                <div class="subsection-block">
+                    <h3>【{{ section.name }}】</h3>
+                    {% for paragraph in section.overview %}
+                    <p class="jp-paragraph">{{ paragraph }}</p>
+                    {% endfor %}
+                    {{ render_table(section) }}
+                </div>
+                {% endfor %}
+            </section>
+            <div class="page-number">2/{{ total_pages }}</div>
+        </section>
+
+        <section class="paper">
+            <section class="topic-block no-top-space">
+                <h2><span class="bullet">●</span>地上気象及びアメダス観測値グラフ</h2>
+                <p class="graph-period">気象経過図：{{ year }}年{{ month }}月1日 ～ {{ year }}年{{ month }}月{{ month_last_day }}日</p>
+                <div class="graph-grid three-columns">
+                    {% for card in graph_cards %}
+                    <div class="graph-card image-card">
+                        <h3>{{ card.name }}</h3>
+                        <img src="{{ card.image_url }}" alt="{{ card.image_alt }}" class="graph-image">
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if merge_sections_into_graph_page %}
+                <section class="topic-block">
+                    <h2><span class="bullet">●</span>極値・順位値更新表</h2>
+                    <p class="jp-paragraph">{{ month }}月の極値はありません。</p>
+
+                    <h2><span class="bullet">●</span>生物季節観測表</h2>
+                    <p class="jp-paragraph">{{ bio_section.caption }}</p>
+
+                    {% if bio_section.rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table narrow-table bio-table">
+                            <thead>
+                                <tr>
+                                    {% for column in bio_section.columns %}
+                                    <th>{{ column | replace('（', '<br>（') | safe }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in bio_section.rows %}
+                                <tr>
+                                    {% for value in row %}
+                                    <td>{{ value }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <ul class="note-list">
+                        {% for note in bio_section.notes %}
+                        <li>{{ note }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </section>
+                {% endif %}
+            </section>
+            <div class="page-number">3/{{ total_pages }}</div>
+        </section>
+
+        {% if show_extreme_dedicated_page %}
+        <section class="paper">
+            <section class="topic-block no-top-space">
+                {% for table in extreme_tables %}
+                <div class="subsection-block">
+                    <h2><span class="bullet">●</span>{{ table.title }}</h2>
+                    <div class="table-wrap">
+                        <table class="stats-table narrow-table">
+                            <thead>
+                                <tr>
+                                    {% for column in table.columns %}
+                                    <th class="{{ table.column_classes[loop.index0] }}">{{ column }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in table.rows %}
+                                <tr>
+                                    {% for value in row %}
+                                    <td class="{{ table.column_classes[loop.index0] }}">{{ value }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <ul class="note-list">
+                        <li>３位更新までを記載しています。</li>
+                        <li>１位が更新された場合の「極値」欄は、従来の極値とします。 </li>
+                        <li>同一期間内に極値となる値が２つ以上現れた場合は、観測日（月）の新しい方を極値としています。</li>
+                        <li>＊印は下位と同値（タイ記録）を意味します 。 </li>
+                    </ul>
+                </div>
+                {% endfor %}
+            </section>
+            <div class="page-number">4/{{ total_pages }}</div>
+        </section>
+        {% endif %}
+
+        {% if not merge_sections_into_graph_page %}
+        <section class="paper">
+            <section class="topic-block no-top-space">
+                {% if not show_extreme_dedicated_page and extreme_tables %}
+                    {% for table in extreme_tables %}
+                    <div class="subsection-block">
+                        <h2><span class="bullet">●</span>{{ table.title }}</h2>
+                        <div class="table-wrap">
+                            <table class="stats-table narrow-table">
+                                <thead>
+                                    <tr>
+                                        {% for column in table.columns %}
+                                        <th class="{{ table.column_classes[loop.index0] }}">{{ column }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in table.rows %}
+                                    <tr>
+                                        {% for value in row %}
+                                        <td class="{{ table.column_classes[loop.index0] }}">{{ value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <ul class="note-list">
+                            <li>３位更新までを記載しています。</li>
+                            <li>１位が更新された場合の「極値」欄は、従来の極値とします。 </li>
+                            <li>同一期間内に極値となる値が２つ以上現れた場合は、観測日（月）の新しい方を極値としています。</li>
+                            <li>＊印は下位と同値（タイ記録）を意味します 。 </li>
+                        </ul>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                <h2><span class="bullet">●</span>生物季節観測表</h2>
+                <p class="jp-paragraph">{{ bio_section.caption }}</p>
+
+                {% if bio_section.rows %}
+                <div class="table-wrap">
+                    <table class="stats-table narrow-table bio-table">
+                        <thead>
+                            <tr>
+                                {% for column in bio_section.columns %}
+                                <th>{{ column | replace('（', '<br>（') | safe }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in bio_section.rows %}
+                            <tr>
+                                {% for value in row %}
+                                <td>{{ value }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <ul class="note-list">
+                    {% for note in bio_section.notes %}
+                    <li>{{ note }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </section>
+            <div class="page-number">{{ bio_page_number }}/{{ total_pages }}</div>
+        </section>
+        {% endif %}
+    </div>
+</body>
+</html>

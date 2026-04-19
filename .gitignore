@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.pytest_cache/
+
+# Generated app artifacts
+pdf_images/*
+*.docx
+*.pdf
+*.xlsx
+
+# Generated monthly cache data from JMA
+# Keep source CSV/config at repo root, but exclude regenerated monthly folders
+/data/*/
