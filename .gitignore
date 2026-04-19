@@ -13,3 +13,9 @@ pdf_images/*
 # Generated monthly cache data from JMA
 # Keep source CSV/config at repo root, but exclude regenerated monthly folders
 /data/*/
+
+# Local maintenance scripts not needed for deployment
+convert_kubun.py
+make_word.py
+pdf_to_images.py
+requirements_pdf.txt
