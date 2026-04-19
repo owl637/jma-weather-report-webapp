@@ -118,6 +118,34 @@ def gather_graph_values(datasets, keys):
     return values
 
 
+def choose_nice_step(values, default_step, force_zero=False, target_ticks=6, min_step=None):
+    if not values:
+        return default_step
+
+    lower = 0 if force_zero else min(values)
+    upper = max(values)
+    span = max(upper - lower, default_step)
+    raw_step = span / max(target_ticks, 1)
+    magnitude = 10 ** math.floor(math.log10(raw_step)) if raw_step > 0 else 1
+    normalized = raw_step / magnitude
+
+    if normalized <= 1.5:
+        nice_fraction = 1
+    elif normalized <= 3:
+        nice_fraction = 2
+    elif normalized <= 4:
+        nice_fraction = 2.5
+    elif normalized <= 7:
+        nice_fraction = 5
+    else:
+        nice_fraction = 10
+
+    step = nice_fraction * magnitude
+    if min_step is not None:
+        step = max(step, min_step)
+    return step
+
+
 def compute_axis_bounds(values, step, force_zero=False):
     if not values:
         lower = 0 if force_zero else 0
@@ -143,14 +171,18 @@ def build_graph_scales(datasets):
     precip_values = gather_graph_values(datasets, ['precip', 'precip_normal'])
     sun_values = gather_graph_values(datasets, ['sun', 'sun_normal'])
 
-    temp_min, temp_max = compute_axis_bounds(temp_values, 5, force_zero=False)
-    precip_min, precip_max = compute_axis_bounds(precip_values, 10, force_zero=True)
-    sun_min, sun_max = compute_axis_bounds(sun_values, 5, force_zero=True)
+    temp_step = choose_nice_step(temp_values, 5, force_zero=False, target_ticks=5, min_step=5)
+    precip_step = choose_nice_step(precip_values, 10, force_zero=True, target_ticks=6, min_step=5)
+    sun_step = choose_nice_step(sun_values, 5, force_zero=True, target_ticks=6, min_step=2.5)
+
+    temp_min, temp_max = compute_axis_bounds(temp_values, temp_step, force_zero=False)
+    precip_min, precip_max = compute_axis_bounds(precip_values, precip_step, force_zero=True)
+    sun_min, sun_max = compute_axis_bounds(sun_values, sun_step, force_zero=True)
 
     return {
-        'temp': {'min': temp_min, 'max': temp_max, 'step': 5},
-        'precip': {'min': precip_min, 'max': precip_max, 'step': 10},
-        'sun': {'min': sun_min, 'max': sun_max, 'step': 5},
+        'temp': {'min': temp_min, 'max': temp_max, 'step': temp_step},
+        'precip': {'min': precip_min, 'max': precip_max, 'step': precip_step},
+        'sun': {'min': sun_min, 'max': sun_max, 'step': sun_step},
     }
 
 
