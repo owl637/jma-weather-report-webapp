@@ -178,7 +178,7 @@ body {
 }
 
 .col-station {
-    width: 12%;
+    width: 11%;
     white-space: nowrap;
 }
 
@@ -188,12 +188,12 @@ body {
 }
 
 .col-ratio {
-    width: 8%;
+    width: 7%;
     white-space: nowrap;
 }
 
 .col-class {
-    width: 12%;
+    width: 13%;
     white-space: nowrap;
 }
 
