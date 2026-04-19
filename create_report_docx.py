@@ -139,7 +139,7 @@ def build_table_data(df):
     column_classes = [
         'col-station',
         'col-value',
-        'col-value',
+        'col-ratio',
         'col-class',
         'col-value',
         'col-ratio',
