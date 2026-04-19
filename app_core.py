@@ -2,11 +2,21 @@ import json
 import os
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_YEAR = int(os.environ.get('JMA_YEAR', '2026'))
-DEFAULT_MONTH = int(os.environ.get('JMA_MONTH', '2'))
+
+
+def get_previous_month(reference_date=None):
+    today = reference_date or date.today()
+    previous_month_day = today.replace(day=1) - timedelta(days=1)
+    return previous_month_day.year, previous_month_day.month
+
+
+FALLBACK_YEAR, FALLBACK_MONTH = get_previous_month()
+DEFAULT_YEAR = int(os.environ.get('JMA_YEAR', str(FALLBACK_YEAR)))
+DEFAULT_MONTH = int(os.environ.get('JMA_MONTH', str(FALLBACK_MONTH)))
 PERIODS = ['月', '上旬', '中旬', '下旬']
 
 
