@@ -36,10 +36,16 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: データダウンロード実行
-        env:
-          JMA_YEAR: ${{ github.event.inputs.year }}
-          JMA_MONTH: ${{ github.event.inputs.month }}
-        run: python downloads.py
+        run: |
+          if [ -n "${{ github.event.inputs.year }}" ]; then
+            export JMA_YEAR="${{ github.event.inputs.year }}"
+          fi
+
+          if [ -n "${{ github.event.inputs.month }}" ]; then
+            export JMA_MONTH="${{ github.event.inputs.month }}"
+          fi
+
+          python downloads.py
 
       - name: 変更ファイルの確認
         id: check_changes
