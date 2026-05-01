@@ -15,8 +15,25 @@ def get_previous_month(reference_date=None):
 
 
 FALLBACK_YEAR, FALLBACK_MONTH = get_previous_month()
-DEFAULT_YEAR = int(os.environ.get('JMA_YEAR', str(FALLBACK_YEAR)))
-DEFAULT_MONTH = int(os.environ.get('JMA_MONTH', str(FALLBACK_MONTH)))
+
+
+def _get_int_env(name, fallback):
+    value = os.environ.get(name)
+    if value is None:
+        return fallback
+
+    value = value.strip()
+    if not value:
+        return fallback
+
+    try:
+        return int(value)
+    except ValueError:
+        return fallback
+
+
+DEFAULT_YEAR = _get_int_env('JMA_YEAR', FALLBACK_YEAR)
+DEFAULT_MONTH = _get_int_env('JMA_MONTH', FALLBACK_MONTH)
 PERIODS = ['月', '上旬', '中旬', '下旬']
 
 

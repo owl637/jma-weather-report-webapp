@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 from flask import Flask, render_template, request
 
-from app_core import BASE_DIR, DEFAULT_MONTH, DEFAULT_YEAR, PERIODS, get_previous_month, get_save_dir, run_script
+from app_core import BASE_DIR, PERIODS, get_previous_month, get_save_dir, run_script
 from biological_utils import build_biological_section
 from graph_utils import build_graph_cards, get_month_last_day
 PLACEHOLDER_TEXT = '（後で記入）'
@@ -582,8 +582,8 @@ def create_app():
 @app.route('/')
 def report():
     fallback_year, fallback_month = get_previous_month()
-    year = request.args.get('year', default=int(os.environ.get('JMA_YEAR', fallback_year)), type=int)
-    month = request.args.get('month', default=int(os.environ.get('JMA_MONTH', fallback_month)), type=int)
+    year = request.args.get('year', default=fallback_year, type=int)
+    month = request.args.get('month', default=fallback_month, type=int)
 
     if os.environ.get('AUTO_PREPARE_DATA', '1') == '1':
         ensure_report_inputs(year, month)
