@@ -47,6 +47,18 @@ jobs:
 
           python downloads.py
 
+      - name: Word用CSV作成
+        run: |
+          if [ -n "${{ github.event.inputs.year }}" ]; then
+            export JMA_YEAR="${{ github.event.inputs.year }}"
+          fi
+
+          if [ -n "${{ github.event.inputs.month }}" ]; then
+            export JMA_MONTH="${{ github.event.inputs.month }}"
+          fi
+
+          python build_word_table.py
+
       - name: 変更ファイルの確認
         id: check_changes
         run: |
