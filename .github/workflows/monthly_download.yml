@@ -1,0 +1,60 @@
+name: Monthly JMA Data Download
+
+on:
+  # 毎月1日 09:00 JST (= 00:00 UTC) に自動実行
+  schedule:
+    - cron: '0 0 1 * *'
+  # 手動実行（任意の年月を指定可能）
+  workflow_dispatch:
+    inputs:
+      year:
+        description: '対象年 (例: 2025) — 省略時は前月'
+        required: false
+        default: ''
+      month:
+        description: '対象月 (例: 4) — 省略時は前月'
+        required: false
+        default: ''
+
+jobs:
+  download-and-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # data/ フォルダへのコミット・プッシュに必要
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Python のセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 依存パッケージのインストール
+        run: pip install -r requirements.txt
+
+      - name: データダウンロード実行
+        env:
+          JMA_YEAR: ${{ github.event.inputs.year }}
+          JMA_MONTH: ${{ github.event.inputs.month }}
+        run: python downloads.py
+
+      - name: 変更ファイルの確認
+        id: check_changes
+        run: |
+          git add data/
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 新規データをコミット＆プッシュ
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: monthly data download $(date +'%Y-%m')"
+          git push
