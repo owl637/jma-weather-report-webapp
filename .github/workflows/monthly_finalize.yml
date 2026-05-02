@@ -1,0 +1,105 @@
+name: Monthly Finalize Gaikyo CSV
+
+on:
+  schedule:
+    # 毎月2日 JST 06:05 (= UTC 1日 21:05) に前月分を確定
+    - cron: '5 21 1 * *'
+  workflow_dispatch:
+    inputs:
+      month:
+        description: '対象月 YYYYMM (省略時は前月を自動判定)'
+        required: false
+        default: ''
+      area_code:
+        description: '地域コード (省略時は 472000)'
+        required: false
+        default: '472000'
+      area_name:
+        description: '地域名 (省略時は 大東島地方)'
+        required: false
+        default: '大東島地方'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          # push 権限が必要なため token を渡す
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Python のセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 依存パッケージのインストール
+        run: pip install -r requirements.txt
+
+      - name: 対象月を決定
+        id: set_month
+        run: |
+          INPUT_MONTH="${{ github.event.inputs.month }}"
+          if [ -n "${INPUT_MONTH}" ]; then
+            echo "month=${INPUT_MONTH}" >> "$GITHUB_OUTPUT"
+          else
+            # 前月を YYYYMM 形式で計算
+            PREV=$(python - <<'EOF'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          import sys
+          JST = ZoneInfo("Asia/Tokyo")
+          today = datetime.now(JST).date()
+          if today.month == 1:
+              print(f"{today.year - 1}12")
+          else:
+              print(f"{today.year}{today.month - 1:02d}")
+          EOF
+          )
+            echo "month=${PREV}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: MongoDB → yyyymm-概況.csv を生成
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+        run: |
+          set -euo pipefail
+          MONTH="${{ steps.set_month.outputs.month }}"
+          AREA_CODE="${{ github.event.inputs.area_code || '472000' }}"
+          echo "[INFO] 月次確定: month=${MONTH} area_code=${AREA_CODE}"
+          python export_gaikyo_csv.py --month "${MONTH}" --area-code "${AREA_CODE}"
+
+      - name: 概況文.csv を生成
+        run: |
+          set -euo pipefail
+          MONTH="${{ steps.set_month.outputs.month }}"
+          AREA_NAME="${{ github.event.inputs.area_name || '大東島地方' }}"
+          python build_gaikyo_sentence.py --month "${MONTH}" --area-name "${AREA_NAME}"
+
+      - name: 生成ファイルをコミット・プッシュ
+        run: |
+          set -euo pipefail
+          MONTH="${{ steps.set_month.outputs.month }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          YEAR="${MONTH:0:4}"
+          MON="${MONTH:4:2}"
+          DATA_DIR="data/${YEAR}_${MON}"
+
+          git add "${DATA_DIR}/${MONTH}-概況.csv" "${DATA_DIR}/概況文.csv" || true
+
+          if git diff --cached --quiet; then
+            echo "[INFO] 変更なし。コミットをスキップします。"
+          else
+            git commit -m "chore: ${MONTH} 月次概況CSV確定 [skip ci]"
+            git push origin HEAD
+            echo "[OK] コミット・プッシュ完了"
+          fi
