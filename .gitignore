@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .env
 .pytest_cache/
+logs/
 
 # Generated app artifacts
 pdf_images/*

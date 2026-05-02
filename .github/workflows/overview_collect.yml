@@ -1,0 +1,67 @@
+name: Collect JMA Overview To MongoDB
+
+on:
+  schedule:
+    # JST 05:05 (= UTC 前日 20:05)
+    - cron: '5 20 * * *'
+    # JST 11:05 (= UTC 02:05)
+    - cron: '5 2 * * *'
+    # JST 17:05 (= UTC 08:05)
+    - cron: '5 8 * * *'
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: '保存スロット (05/11/17)。省略時は実行時刻から自動判定'
+        required: false
+        default: ''
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  collect-overview:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Python のセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 依存パッケージのインストール
+        run: pip install -r requirements.txt
+
+      - name: 概況文を取得してMongoDBへ保存
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          INPUT_SLOT: ${{ github.event.inputs.slot }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${INPUT_SLOT}" ]; then
+            SLOT="${INPUT_SLOT}"
+          else
+            case "${EVENT_SCHEDULE}" in
+              '5 20 * * *') SLOT='05' ;;
+              '5 2 * * *') SLOT='11' ;;
+              '5 8 * * *') SLOT='17' ;;
+              *) SLOT='' ;;
+            esac
+          fi
+
+          if [ -z "${MONGODB_URI}" ]; then
+            echo "MONGODB_URI secret is not set" >&2
+            exit 1
+          fi
+
+          if [ -n "${SLOT}" ]; then
+            python fetch_overview_to_mongo.py --slot "${SLOT}"
+          else
+            python fetch_overview_to_mongo.py
+          fi

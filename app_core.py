@@ -59,9 +59,12 @@ def load_json(file_path):
         return json.load(f)
 
 
-def run_script(script_name, year, month):
+def run_script(script_name, year, month, args=None):
     env = os.environ.copy()
     env['JMA_YEAR'] = str(year)
     env['JMA_MONTH'] = str(month)
     script_path = BASE_DIR / script_name
-    subprocess.run([sys.executable, str(script_path)], check=True, cwd=BASE_DIR, env=env)
+    command = [sys.executable, str(script_path)]
+    if args:
+        command.extend(str(arg) for arg in args)
+    subprocess.run(command, check=True, cwd=BASE_DIR, env=env)

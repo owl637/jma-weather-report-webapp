@@ -83,10 +83,19 @@ def ensure_report_inputs(year, month):
             ])
 
     if all(os.path.exists(file_path) for file_path in required_files):
+        gaikyo_csv = os.path.join(save_dir, '概況文.csv')
+        raw_gaikyo_csv = os.path.join(save_dir, f'{year}{month:02d}-概況.csv')
+        if not os.path.exists(gaikyo_csv) and os.path.exists(raw_gaikyo_csv):
+            run_script('build_gaikyo_sentence.py', year, month, ['--month', f'{year}{month:02d}', '--area-name', '大東島地方'])
         return
 
     run_script('downloads.py', year, month)
     run_script('build_word_table.py', year, month)
+
+    gaikyo_csv = os.path.join(save_dir, '概況文.csv')
+    raw_gaikyo_csv = os.path.join(save_dir, f'{year}{month:02d}-概況.csv')
+    if not os.path.exists(gaikyo_csv) and os.path.exists(raw_gaikyo_csv):
+        run_script('build_gaikyo_sentence.py', year, month, ['--month', f'{year}{month:02d}', '--area-name', '大東島地方'])
 
 
 def to_reiwa(year):
@@ -120,10 +129,28 @@ def normalize_value(value, default='／'):
     return text if text else default
 
 
-def build_summary_text(df, period_name):
-    if period_name == '月':
-        return f'大東島地方は、{PLACEHOLDER_TEXT}'
-    # return f'大東島地方は、{period_name}に{PLACEHOLDER_TEXT}'
+def load_gaikyo_sentences(year, month):
+    gaikyo_path = os.path.join(get_save_dir(year, month), '概況文.csv')
+    if not os.path.exists(gaikyo_path):
+        return {}
+
+    df = pd.read_csv(gaikyo_path, dtype=str).fillna('')
+    if '期間' not in df.columns or '概況文' not in df.columns:
+        return {}
+
+    sentence_map = {}
+    for row in df.to_dict(orient='records'):
+        period = normalize_value(row.get('期間', ''), '')
+        sentence = normalize_value(row.get('概況文', ''), '')
+        if period and sentence:
+            sentence_map[period] = sentence
+    return sentence_map
+
+
+def build_summary_text(period_name, gaikyo_sentences):
+    sentence = gaikyo_sentences.get(period_name, '')
+    if sentence:
+        return sentence
     return f'大東島地方は、{PLACEHOLDER_TEXT}'
 
 
@@ -511,13 +538,13 @@ def build_section_paragraphs(records, summary, period_name, month, rank_updates)
     ]
 
 
-def build_sections(year, month, rank_updates):
+def build_sections(year, month, rank_updates, gaikyo_sentences):
     sections = []
     for period_name in PERIODS:
         df = load_period_csv(period_name, year, month)
         columns, rows, column_classes = build_table_data(df)
         records = df.to_dict(orient='records')
-        summary = build_summary_text(df, period_name)
+        summary = build_summary_text(period_name, gaikyo_sentences)
         sections.append({
             'name': period_name,
             'summary': summary,
@@ -588,7 +615,8 @@ def report():
     if os.environ.get('AUTO_PREPARE_DATA', '1') == '1':
         ensure_report_inputs(year, month)
     rank_updates = collect_rank_updates(year, month)
-    sections = build_sections(year, month, rank_updates)
+    gaikyo_sentences = load_gaikyo_sentences(year, month)
+    sections = build_sections(year, month, rank_updates, gaikyo_sentences)
     month_section = sections[0]
     ten_day_sections = sections[1:]
     extreme_tables = build_extreme_tables(rank_updates)
