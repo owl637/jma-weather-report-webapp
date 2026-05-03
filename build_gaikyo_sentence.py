@@ -151,10 +151,9 @@ def build_gaikyo_sentence(
         # 3位も2位と同数なら両方載せる
         if n >= 3 and freq3 == freq2:
             r3 = df.iloc[2]
-            conn2 = connector_dict.get(r2["要因"], "の影響で")
             conn3 = connector_dict.get(r3["要因"], "の影響で")
-            if conn2 == conn3:
-                combined_weathers = list(dict.fromkeys(r2["天気リスト"] + r3["天気リスト"]))
+            combined_weathers = list(dict.fromkeys(r2["天気リスト"] + r3["天気リスト"]))
+            if set(r2["天気リスト"]) == set(r3["天気リスト"]):
                 return (
                     f"{area_name}は、{ph1}{d1}もあったが、"
                     f"{r2['要因']}や{r3['要因']}{conn3}{'や'.join(combined_weathers)}の日もあった。"
@@ -169,14 +168,13 @@ def build_gaikyo_sentence(
         return f"{area_name}は、{ph1}{d1}もあったが、{ph2}{d2}もあった。"
 
     total_freq = int(df["頻度"].sum())
-    if n < 3 or freq2 + freq3 < total_freq / 3:
+    if n < 3 or freq2 + freq3 < total_freq * 2 / 5:
         return f"{area_name}は、{ph1}{d1}が多かった。"
 
     r3 = df.iloc[2]
-    conn2 = connector_dict.get(r2["要因"], "の影響で")
     conn3 = connector_dict.get(r3["要因"], "の影響で")
-    if conn2 == conn3:
-        combined_weathers = list(dict.fromkeys(r2["天気リスト"] + r3["天気リスト"]))
+    combined_weathers = list(dict.fromkeys(r2["天気リスト"] + r3["天気リスト"]))
+    if set(r2["天気リスト"]) == set(r3["天気リスト"]):
         return (
             f"{area_name}は、{ph1}{d1}もあったが、"
             f"{r2['要因']}や{r3['要因']}{conn3}{'や'.join(combined_weathers)}の日もあった。"
