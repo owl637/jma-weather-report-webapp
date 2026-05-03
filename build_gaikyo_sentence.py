@@ -103,15 +103,27 @@ def build_gaikyo_sentence(
     """
     要因天気頻度DataFrameから概況文を生成する。
     同一要因に複数の天気がある場合は頻度を合算し、天気を「曇りや雨」のように結合する。
+    各天気の頻度が要因全体の1/3未満なら省略する。
     """
     base = counts_df[counts_df["要因"] != "雲のすき間"]
     freq_df = base.groupby("要因")["頻度"].sum().reset_index(name="頻度")
-    weathers_df = (
-        base.sort_values("頻度", ascending=False)
-        .groupby("要因")["天気"]
-        .apply(lambda s: list(dict.fromkeys(s)))
-        .reset_index(name="天気リスト")
-    )
+    
+    # 各要因ごとに1/3以上の天気のみを抽出
+    def get_weathers_above_threshold(factor: str) -> list[str]:
+        factor_data = base[base["要因"] == factor]
+        total = factor_data["頻度"].sum()
+        threshold = total / 3
+        filtered = factor_data[factor_data["頻度"] >= threshold]
+        weathers = filtered.sort_values("頻度", ascending=False)["天気"].unique()
+        return list(dict.fromkeys(weathers))
+    
+    weathers_list = []
+    for factor in freq_df["要因"]:
+        weathers = get_weathers_above_threshold(factor)
+        weathers_list.append({"要因": factor, "天気リスト": weathers})
+    
+    weathers_df = pd.DataFrame(weathers_list)
+    
     df = (
         freq_df.merge(weathers_df, on="要因")
         .sort_values("頻度", ascending=False)
