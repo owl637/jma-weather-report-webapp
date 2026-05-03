@@ -158,6 +158,22 @@ def build_gaikyo_sentence(
                     f"{area_name}は、{ph1}{d1}もあったが、"
                     f"{r2['要因']}や{r3['要因']}{conn3}{'や'.join(combined_weathers)}の日もあった。"
                 )
+            # 2位か3位が1位と同じ天気なら1位とまとめる
+            if set(r2["天気リスト"]) == set(r1["天気リスト"]):
+                conn2 = connector_dict.get(r2["要因"], "の影響で")
+                combined12 = list(dict.fromkeys(r1["天気リスト"] + r2["天気リスト"]))
+                ph3, d3 = _phrase_and_day(r3["要因"], r3["天気リスト"], connector_dict)
+                return (
+                    f"{area_name}は、{r1['要因']}や{r2['要因']}{conn2}{'や'.join(combined12)}の日もあったが、"
+                    f"{ph3}{d3}もあった。"
+                )
+            if set(r3["天気リスト"]) == set(r1["天気リスト"]):
+                combined13 = list(dict.fromkeys(r1["天気リスト"] + r3["天気リスト"]))
+                ph2, d2 = _phrase_and_day(r2["要因"], r2["天気リスト"], connector_dict)
+                return (
+                    f"{area_name}は、{r1['要因']}や{r3['要因']}{conn3}{'や'.join(combined13)}の日もあったが、"
+                    f"{ph2}{d2}もあった。"
+                )
             ph2, d2 = _phrase_and_day(r2["要因"], r2["天気リスト"], connector_dict)
             ph3, d3 = _phrase_and_day(r3["要因"], r3["天気リスト"], connector_dict)
             return (
@@ -184,6 +200,22 @@ def build_gaikyo_sentence(
         return (
             f"{area_name}は、{ph1}{d1}もあったが、"
             f"{r2['要因']}や{r3['要因']}{conn3}{'や'.join(combined_weathers)}の日もあった。"
+        )
+    # 2位か3位が1位と同じ天気なら1位とまとめる
+    if set(r2["天気リスト"]) == set(r1["天気リスト"]):
+        conn2 = connector_dict.get(r2["要因"], "の影響で")
+        combined12 = list(dict.fromkeys(r1["天気リスト"] + r2["天気リスト"]))
+        ph3, d3 = _phrase_and_day(r3["要因"], r3["天気リスト"], connector_dict)
+        return (
+            f"{area_name}は、{r1['要因']}や{r2['要因']}{conn2}{'や'.join(combined12)}の日もあったが、"
+            f"{ph3}{d3}もあった。"
+        )
+    if set(r3["天気リスト"]) == set(r1["天気リスト"]):
+        combined13 = list(dict.fromkeys(r1["天気リスト"] + r3["天気リスト"]))
+        ph2, d2 = _phrase_and_day(r2["要因"], r2["天気リスト"], connector_dict)
+        return (
+            f"{area_name}は、{r1['要因']}や{r3['要因']}{conn3}{'や'.join(combined13)}の日もあったが、"
+            f"{ph2}{d2}もあった。"
         )
     ph2, d2 = _phrase_and_day(r2["要因"], r2["天気リスト"], connector_dict)
     ph3, d3 = _phrase_and_day(r3["要因"], r3["天気リスト"], connector_dict)
