@@ -8,12 +8,23 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from pathlib import Path
 
 import pandas as pd
 
 KEYWORD_CSV = "keyword.csv"
 PERIODS: list[str] = ["上旬", "中旬", "下旬"]
+STORM_PRIORITY: list[tuple[str, int, float | None]] = [
+    ("大荒れ", 25, 0),
+    ("荒れた天気", 15, 0),
+    ("大雨", 0, 30),
+]
+DAILY_EVENT_FILES: list[str] = [
+    "daily_s1_91_47945.csv",
+    "daily_a1_91_1518.csv",
+    "daily_a1_91_1517.csv",
+]
 
 
 def month_to_data_dir(month: str) -> Path:
@@ -56,6 +67,13 @@ def get_period(day_str: str) -> str:
         return "下旬"
     except ValueError:
         return "不明"
+
+
+def get_day_number(day_str: str) -> int | None:
+    try:
+        return int(str(day_str).split("/")[1])
+    except (IndexError, ValueError):
+        return None
 
 
 def load_rules(keyword_path: str) -> pd.DataFrame:
@@ -237,6 +255,77 @@ def build_gaikyo_sentence(
     )
 
 
+def _safe_float(value: object) -> float:
+    text = str(value).strip()
+    if text in {"", "--", "///"}:
+        return 0.0
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return 0.0
+    return float(match.group(0))
+
+
+def classify_daily_event(row: pd.Series) -> str | None:
+    wind = _safe_float(row.get("日最大風速(m/s)", 0))
+    rain = _safe_float(row.get("日降水量(mm)", 0))
+
+    if wind >= 25 and rain > 0:
+        return "大荒れ"
+    if wind >= 15 and rain > 0:
+        return "荒れた天気"
+    if rain >= 30:
+        return "大雨"
+    return None
+
+
+def event_rank(event_name: str) -> int:
+    order = ["大荒れ", "荒れた天気", "大雨"]
+    return order.index(event_name)
+
+
+def format_days(days: list[int]) -> str:
+    if len(days) == 1:
+        return f"{days[0]}日"
+    if len(days) == 2:
+        return f"{days[0]}日と{days[1]}日"
+    return f"{days[0]}日と{days[1]}日" + "".join(f"、{day}日" for day in days[2:])
+
+
+def build_event_suffix(period_df: pd.DataFrame, daily_dfs: list[pd.DataFrame]) -> str:
+    days = [day for day in period_df["月日"].map(get_day_number).tolist() if day is not None]
+    if not days or not daily_dfs:
+        return ""
+
+    events: dict[str, list[int]] = {"大荒れ": [], "荒れた天気": [], "大雨": []}
+    best_event_by_day: dict[int, str] = {}
+    for daily_df in daily_dfs:
+        if daily_df.empty:
+            continue
+        target_df = daily_df[daily_df["日"].isin(days)].copy()
+        for _, row in target_df.iterrows():
+            event = classify_daily_event(row)
+            if not event:
+                continue
+            day = int(row["日"])
+            current = best_event_by_day.get(day)
+            if current is None or event_rank(event) < event_rank(current):
+                best_event_by_day[day] = event
+
+    for day, event in best_event_by_day.items():
+        events[event].append(day)
+
+    parts: list[str] = []
+    for event_name in ["大荒れ", "荒れた天気", "大雨"]:
+        event_days = sorted(dict.fromkeys(events[event_name]))
+        if not event_days:
+            continue
+        if event_name == "大雨":
+            parts.append(f"{format_days(event_days)}は大雨となった。")
+        else:
+            parts.append(f"{format_days(event_days)}は{event_name}となった。")
+    return " ".join(parts)
+
+
 def rule_matches(text_n: str, text_weather: str, rule: pd.Series) -> bool:
     if rule["factor_n"] not in text_n:
         return False
@@ -291,6 +380,11 @@ def generate_sentences(
     rules_df = load_rules(str(keyword_csv))
     connector_dict = build_connector_dict(str(keyword_csv))
     df["期間"] = df["月日"].map(get_period)
+    daily_dfs = [
+        pd.read_csv(input_csv.parent / file_name).fillna("")
+        for file_name in DAILY_EVENT_FILES
+        if (input_csv.parent / file_name).exists()
+    ]
 
     period_slices = [("月", df)] + [(p, df[df["期間"] == p]) for p in PERIODS]
     sentences: list[dict[str, str]] = []
@@ -300,6 +394,10 @@ def generate_sentences(
             continue
         counts = df_records.groupby(["要因", "天気"]).size().reset_index(name="頻度")
         sentence = build_gaikyo_sentence(counts, connector_dict, area_name)
+        if sentence and label in PERIODS:
+            event_suffix = build_event_suffix(sub_df, daily_dfs)
+            if event_suffix:
+                sentence = f"{sentence} {event_suffix}"
         if sentence:
             sentences.append({"期間": label, "概況文": sentence})
     return sentences
