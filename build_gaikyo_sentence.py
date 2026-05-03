@@ -153,6 +153,12 @@ def build_gaikyo_sentence(
             r3 = df.iloc[2]
             conn3 = connector_dict.get(r3["要因"], "の影響で")
             combined_weathers = list(dict.fromkeys(r2["天気リスト"] + r3["天気リスト"]))
+            # 1位2位3位すべて天気が同じなら全部まとめる
+            if set(r1["天気リスト"]) == set(r2["天気リスト"]) == set(r3["天気リスト"]):
+                combined_all = list(dict.fromkeys(r1["天気リスト"] + r2["天気リスト"] + r3["天気リスト"]))
+                return (
+                    f"{area_name}は、{r1['要因']}や{r2['要因']}や{r3['要因']}{conn3}{'や'.join(combined_all)}の日が多かった。"
+                )
             if set(r2["天気リスト"]) == set(r3["天気リスト"]):
                 return (
                     f"{area_name}は、{ph1}{d1}もあったが、"
@@ -196,6 +202,12 @@ def build_gaikyo_sentence(
     r3 = df.iloc[2]
     conn3 = connector_dict.get(r3["要因"], "の影響で")
     combined_weathers = list(dict.fromkeys(r2["天気リスト"] + r3["天気リスト"]))
+    # 1位2位3位すべて天気が同じなら全部まとめる
+    if set(r1["天気リスト"]) == set(r2["天気リスト"]) == set(r3["天気リスト"]):
+        combined_all = list(dict.fromkeys(r1["天気リスト"] + r2["天気リスト"] + r3["天気リスト"]))
+        return (
+            f"{area_name}は、{r1['要因']}や{r2['要因']}や{r3['要因']}{conn3}{'や'.join(combined_all)}の日が多かった。"
+        )
     if set(r2["天気リスト"]) == set(r3["天気リスト"]):
         return (
             f"{area_name}は、{ph1}{d1}もあったが、"
