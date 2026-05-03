@@ -7,6 +7,23 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    {% macro render_summary(period_name, summary_text) -%}
+    <div class="summary-editable screen-only-block" data-period="{{ period_name }}">
+        <div class="summary-display">
+            <p class="jp-paragraph summary-text">{{ summary_text }}</p>
+            <button class="edit-btn" type="button" onclick="startEdit(this)">編集</button>
+        </div>
+        <div class="edit-area" style="display:none">
+            <textarea class="summary-textarea">{{ summary_text }}</textarea>
+            <div class="edit-buttons">
+                <button type="button" onclick="saveEdit(this)">保存</button>
+                <button type="button" onclick="cancelEdit(this)">キャンセル</button>
+            </div>
+        </div>
+    </div>
+    <p class="jp-paragraph print-summary">{{ summary_text }}</p>
+    {%- endmacro %}
+
     {% macro render_table(section) -%}
     <p class="table-caption">{{ section.caption }}</p>
     <div class="table-wrap">
@@ -66,7 +83,8 @@
 
             <section class="topic-block">
                 <h2><span class="bullet">●</span>天気概況（月のまとめ）</h2>
-                {% for paragraph in month_section.overview %}
+                {{ render_summary(month_section.name, month_section.summary) }}
+                {% for paragraph in month_section.overview[1:] %}
                 <p class="jp-paragraph">{{ paragraph }}</p>
                 {% endfor %}
 
@@ -80,6 +98,9 @@
                     <li>"]"付きの値は資料不足値（統計を行う対象資料が許容範囲を超えて欠けている）を意味し、階級についても値と同様の品質となります。</li>
                     <li>"X"は欠測を意味しています。</li>
                 </ul>
+                {% if month_section.baiu_footnote %}
+                <p class="baiu-note">{{ month_section.baiu_footnote }}</p>
+                {% endif %}
             </section>
             <div class="page-number">1/{{ total_pages }}</div>
         </section>
@@ -90,7 +111,8 @@
                 {% for section in ten_day_sections %}
                 <div class="subsection-block">
                     <h3>【{{ section.name }}】</h3>
-                    {% for paragraph in section.overview %}
+                    {{ render_summary(section.name, section.summary) }}
+                    {% for paragraph in section.overview[1:] %}
                     <p class="jp-paragraph">{{ paragraph }}</p>
                     {% endfor %}
                     {{ render_table(section) }}
@@ -267,5 +289,43 @@
         </section>
         {% endif %}
     </div>
+
+<script>
+(function () {
+    function startEdit(btn) {
+        const wrapper = btn.closest('.summary-editable');
+        wrapper.querySelector('.summary-display').style.display = 'none';
+        const editArea = wrapper.querySelector('.edit-area');
+        editArea.style.display = 'block';
+        const ta = editArea.querySelector('.summary-textarea');
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+        ta.focus();
+    }
+
+    function cancelEdit(btn) {
+        const wrapper = btn.closest('.summary-editable');
+        wrapper.querySelector('.edit-area').style.display = 'none';
+        wrapper.querySelector('.summary-display').style.display = '';
+    }
+
+    function saveEdit(btn) {
+        const wrapper = btn.closest('.summary-editable');
+        const text = wrapper.querySelector('.summary-textarea').value.trim();
+        wrapper.querySelector('.summary-text').textContent = text;
+        /* 印刷用テキストも同期 */
+        const printEl = wrapper.nextElementSibling;
+        if (printEl && printEl.classList.contains('print-summary')) {
+            printEl.textContent = text;
+        }
+        cancelEdit(btn);
+    }
+
+    /* グローバルに公開 */
+    window.startEdit  = startEdit;
+    window.cancelEdit = cancelEdit;
+    window.saveEdit   = saveEdit;
+})();
+</script>
 </body>
 </html>

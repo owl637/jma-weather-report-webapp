@@ -530,12 +530,29 @@ def build_main_station_class_sentence(records):
     return '南大東（南大東村在所）の' + '。'.join(sentences) + '。'
 
 
-def build_section_paragraphs(records, summary, period_name, month, rank_updates):
-    return [
+def build_section_paragraphs(records, summary, period_name, year, month, rank_updates):
+    paragraphs = [
         summary,
         build_extreme_sentence(rank_updates, period_name, month),
         build_main_station_class_sentence(records),
     ]
+    baiu_footnote = ""
+    if period_name == '月':
+        from baiu_utils import build_baiu_entry_sentence, build_baiu_end_sentence
+        baiu_text = build_baiu_entry_sentence(year, month)
+        if baiu_text:
+            paragraphs.append(baiu_text)
+        baiu_end_text = build_baiu_end_sentence(year, month)
+        if baiu_end_text:
+            paragraphs.append(baiu_end_text)
+        if baiu_text or baiu_end_text:
+            baiu_footnote = (
+                f"＊速報値。気象予測をもとに行う梅雨明けの速報とは別に、梅雨の季節を過ぎてから、"
+                f"春から夏にかけての実際の天候経過を考慮した検討を行います。"
+                f"そこで検討した梅雨入りの確定値は、９月以降に気象庁ホームページや"
+                f"「{year}年の沖縄地方の天候」（{year + 1}年１月発表）等において公表します。"
+            )
+    return paragraphs, baiu_footnote
 
 
 def build_sections(year, month, rank_updates, gaikyo_sentences):
@@ -545,11 +562,13 @@ def build_sections(year, month, rank_updates, gaikyo_sentences):
         columns, rows, column_classes = build_table_data(df)
         records = df.to_dict(orient='records')
         summary = build_summary_text(period_name, gaikyo_sentences)
+        overview, baiu_footnote = build_section_paragraphs(records, summary, period_name, year, month, rank_updates)
         sections.append({
             'name': period_name,
             'summary': summary,
             'caption': build_table_caption(period_name, month),
-            'overview': build_section_paragraphs(records, summary, period_name, month, rank_updates),
+            'overview': overview,
+            'baiu_footnote': baiu_footnote,
             'columns': columns,
             'column_classes': column_classes,
             'rows': rows,

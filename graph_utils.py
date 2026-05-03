@@ -207,6 +207,84 @@ def build_svg_path(days, values, left, top, width, height, y_min, y_max):
     return ' '.join(commands)
 
 
+def _interpolate_crossing(day1, obs1, nml1, day2, obs2, nml2):
+    """2点間で obs と nml が交差する日の小数値を線形補間で求める。"""
+    d_obs = obs2 - obs1
+    d_nml = nml2 - nml1
+    denom = d_obs - d_nml
+    if abs(denom) < 1e-12:
+        return (day1 + day2) / 2
+    t = (nml1 - obs1) / denom
+    return day1 + t * (day2 - day1)
+
+
+def build_below_normal_fill_paths(days, observed_values, normal_values, left, plot_top, plot_width, plot_height, y_min, y_max):
+    """平年値を下回った区間の観測値と平年値に囲まれた領域のSVGパスを返す（交差点補間付き）。"""
+    if y_max == y_min:
+        return ''
+    last_day = max(days) if days else 1
+
+    def to_xy(day_float, value):
+        x = left if last_day <= 1 else left + ((day_float - 1) / (last_day - 1)) * plot_width
+        y = plot_top + plot_height - ((value - y_min) / (y_max - y_min)) * plot_height
+        return x, y
+
+    # 有効データのみのリストを構築
+    valid = [(d, o, n) for d, o, n in zip(days, observed_values, normal_values)
+             if o is not None and n is not None]
+    if not valid:
+        return ''
+
+    paths = []
+    # セグメント: obs < nml の連続区間（交差点で開始・終了）
+    i = 0
+    while i < len(valid):
+        if valid[i][1] >= valid[i][2]:
+            i += 1
+            continue
+
+        # セグメント開始：前の点との交差点を求める
+        seg_obs_pts = []   # 観測値ライン点 (x, y)
+        seg_nml_pts = []   # 平年値ライン点 (x, y) ※後でreverseして閉じる
+
+        # 開始交差点
+        if i > 0:
+            pd, po, pn = valid[i - 1]
+            cd, co, cn = valid[i]
+            cx = _interpolate_crossing(pd, po, pn, cd, co, cn)
+            cv = po + (co - po) * (cx - pd) / (cd - pd)
+            cn_v = pn + (cn - pn) * (cx - pd) / (cd - pd)
+            cross_v = (cv + cn_v) / 2
+            seg_obs_pts.append(to_xy(cx, cross_v))
+            seg_nml_pts.append(to_xy(cx, cross_v))
+
+        # obs < nml の区間を収集
+        j = i
+        while j < len(valid) and valid[j][1] < valid[j][2]:
+            d, o, n = valid[j]
+            seg_obs_pts.append(to_xy(d, o))
+            seg_nml_pts.append(to_xy(d, n))
+            j += 1
+
+        # 終了交差点
+        if j < len(valid):
+            pd, po, pn = valid[j - 1]
+            cd, co, cn = valid[j]
+            cx = _interpolate_crossing(pd, po, pn, cd, co, cn)
+            cv = po + (co - po) * (cx - pd) / (cd - pd)
+            cn_v = pn + (cn - pn) * (cx - pd) / (cd - pd)
+            cross_v = (cv + cn_v) / 2
+            seg_obs_pts.append(to_xy(cx, cross_v))
+            seg_nml_pts.append(to_xy(cx, cross_v))
+
+        all_points = seg_obs_pts + list(reversed(seg_nml_pts))
+        d_str = 'M' + ' L'.join(f'{x:.2f},{y:.2f}' for x, y in all_points) + ' Z'
+        paths.append(d_str)
+        i = j
+
+    return ' '.join(paths)
+
+
 def render_legend(entries, x, y, columns=1):
     fragments = []
     rows = max(1, math.ceil(len(entries) / columns))
@@ -214,7 +292,7 @@ def render_legend(entries, x, y, columns=1):
     for index, entry in enumerate(entries):
         column = index // rows
         row = index % rows
-        lx = x + column * 62
+        lx = x + column * 85
         ly = y + row * 15
         dash_attr = f' stroke-dasharray="{entry["dash"]}"' if entry.get('dash') else ''
         fragments.append(f'<line x1="{lx}" y1="{ly}" x2="{lx + 18}" y2="{ly}" stroke="{entry["color"]}" stroke-width="2.6"{dash_attr} />')
@@ -223,7 +301,7 @@ def render_legend(entries, x, y, columns=1):
     return ''.join(fragments)
 
 
-def render_metric_panel(title, unit, days, series_specs, legend_specs, scale, month, top_offset, show_top_border=True):
+def render_metric_panel(title, unit, days, series_specs, legend_specs, scale, month, top_offset, show_top_border=True, fill_below_specs=None):
     panel_left = 0
     panel_top = top_offset
     panel_width = 258
@@ -251,7 +329,7 @@ def render_metric_panel(title, unit, days, series_specs, legend_specs, scale, mo
     fragments = [
         *border_fragments,
         f'<text x="6" y="{top_offset + 18}" font-size="15" font-weight="700">({escape(unit)}) {escape(title)}</text>',
-        render_legend(legend_specs, 108, top_offset + 10, columns=2 if len(legend_specs) > 2 else 1),
+        render_legend(legend_specs, 90 if len(legend_specs) > 2 else 140, top_offset + 10, columns=2 if len(legend_specs) > 2 else 1),
         f'<rect x="{left}" y="{plot_top}" width="{plot_width}" height="{plot_height}" fill="#ffffff" stroke="#444" stroke-width="1.2" />',
     ]
 
@@ -275,6 +353,15 @@ def render_metric_panel(title, unit, days, series_specs, legend_specs, scale, mo
             )
         else:
             fragments.append(f'<text x="{x:.2f}" y="{bottom + 12}" font-size="10" font-weight="700" text-anchor="middle">{day}</text>')
+
+    if fill_below_specs:
+        for fill_spec in fill_below_specs:
+            path_data = build_below_normal_fill_paths(
+                days, fill_spec['observed'], fill_spec['normal'],
+                left, plot_top, plot_width, plot_height, y_min, y_max
+            )
+            if path_data:
+                fragments.append(f'<path d="{path_data}" fill="{fill_spec["color"]}" opacity="{fill_spec.get("opacity", 0.3)}" />')
 
     last_day = max(days) if days else 1
     bar_slot = plot_width / max(1, last_day)
@@ -329,6 +416,11 @@ def build_station_graph_svg(dataset, year, month, scales):
         month,
         current_top,
         show_top_border=True,
+        fill_below_specs=[
+            {'observed': dataset['temp_max'], 'normal': dataset['temp_max_normal'], 'color': '#888888', 'opacity': 0.25},
+            {'observed': dataset['temp_min'], 'normal': dataset['temp_min_normal'], 'color': '#888888', 'opacity': 0.25},
+            {'observed': dataset['temp_mean'], 'normal': dataset['temp_mean_normal'], 'color': '#888888', 'opacity': 0.25},
+        ],
     ))
     current_top += panel_height - 1
 

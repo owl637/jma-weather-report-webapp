@@ -164,6 +164,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\unregister_overview_tasks.ps1
 
 
 ## 今後の実装部分
-- 府県天気概況文の自動保存 or 新たな概況文の作成ロジック
-- 『荒れた天気』の実装
-- 3地点のグラフの見た目の改善
+- 『梅雨入り・明け』の実装

@@ -18,3 +18,4 @@ convert_kubun.py
 make_word.py
 pdf_to_images.py
 requirements_pdf.txt
+error_log.txt
