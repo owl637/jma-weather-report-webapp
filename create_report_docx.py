@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, date
 
 import pandas as pd
 from flask import Flask, render_template, request
@@ -106,14 +106,12 @@ def to_reiwa(year):
     return ''
 
 
-def build_publication_date(year, month):
-    next_year = year + 1 if month == 12 else year
-    next_month = 1 if month == 12 else month + 1
+def build_publication_date(date_obj):
     return {
-        'year': next_year,
-        'month': next_month,
-        'day': 15,
-        'reiwa': to_reiwa(next_year),
+        'year': date_obj.year,
+        'month': date_obj.month,
+        'day': date_obj.day,
+        'reiwa': to_reiwa(date_obj.year),
     }
 
 
@@ -631,6 +629,15 @@ def report():
     year = request.args.get('year', default=fallback_year, type=int)
     month = request.args.get('month', default=fallback_month, type=int)
 
+    report_date_str = request.args.get('report_date', default=None)
+    if report_date_str:
+        try:
+            pub_date = datetime.strptime(report_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pub_date = date.today()
+    else:
+        pub_date = date.today()
+
     if os.environ.get('AUTO_PREPARE_DATA', '1') == '1':
         ensure_report_inputs(year, month)
     rank_updates = collect_rank_updates(year, month)
@@ -650,7 +657,8 @@ def report():
         year=year,
         month=month,
         reiwa=to_reiwa(year),
-        report_date=build_publication_date(year, month),
+        report_date=build_publication_date(pub_date),
+        report_date_str=pub_date.strftime('%Y-%m-%d'),
         month_last_day=get_month_last_day(year, month),
         month_section=month_section,
         ten_day_sections=ten_day_sections,

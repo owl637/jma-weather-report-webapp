@@ -164,4 +164,3 @@ powershell -ExecutionPolicy Bypass -File .\scripts\unregister_overview_tasks.ps1
 
 
 ## 今後の実装部分
-- 『梅雨入り・明け』の実装

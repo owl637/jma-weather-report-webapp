@@ -66,6 +66,10 @@
                 月
                 <input type="number" name="month" min="1" max="12" value="{{ month }}">
             </label>
+            <label>
+                文書日付
+                <input type="date" name="report_date" value="{{ report_date_str }}">
+            </label>
             <button type="submit">表示更新</button>
         </form>
         <p>生成時刻: {{ generated_at }} / 印刷でPDF化できます</p>
