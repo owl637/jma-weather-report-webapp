@@ -164,6 +164,12 @@ def build_gaikyo_sentence(
                 f"{area_name}は、{ph1}{d1}もあったが、"
                 f"{ph2}{d2}や{ph3}{d3}もあった。"
             )
+        conn2 = connector_dict.get(r2["要因"], "の影響で")
+        combined_weathers12 = list(dict.fromkeys(r1["天気リスト"] + r2["天気リスト"]))
+        if set(r1["天気リスト"]) == set(r2["天気リスト"]):
+            return (
+                f"{area_name}は、{r1['要因']}や{r2['要因']}{conn2}{'や'.join(combined_weathers12)}の日が多かった。"
+            )
         ph2, d2 = _phrase_and_day(r2["要因"], r2["天気リスト"], connector_dict)
         return f"{area_name}は、{ph1}{d1}もあったが、{ph2}{d2}もあった。"
 
