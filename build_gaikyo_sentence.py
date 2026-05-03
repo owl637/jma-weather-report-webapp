@@ -147,6 +147,24 @@ def build_gaikyo_sentence(
     if freq2 + freq3 <= freq1 / 2:
         return f"{area_name}は、{ph1}{d1}が多かった。"
 
+    # 2位と3位が同数（同着）の場合は必ず両方載せる
+    if n >= 3 and freq2 == freq3:
+        r3 = df.iloc[2]
+        conn2 = connector_dict.get(r2["要因"], "の影響で")
+        conn3 = connector_dict.get(r3["要因"], "の影響で")
+        if conn2 == conn3:
+            combined_weathers = list(dict.fromkeys(r2["天気リスト"] + r3["天気リスト"]))
+            return (
+                f"{area_name}は、{ph1}{d1}もあったが、"
+                f"{r2['要因']}や{r3['要因']}{conn3}{'や'.join(combined_weathers)}の日もあった。"
+            )
+        ph2, d2 = _phrase_and_day(r2["要因"], r2["天気リスト"], connector_dict)
+        ph3, d3 = _phrase_and_day(r3["要因"], r3["天気リスト"], connector_dict)
+        return (
+            f"{area_name}は、{ph1}{d1}もあったが、"
+            f"{ph2}{d2}や{ph3}{d3}もあった。"
+        )
+
     if freq2 >= freq1 / 2:
         ph2, d2 = _phrase_and_day(r2["要因"], r2["天気リスト"], connector_dict)
         return f"{area_name}は、{ph1}{d1}もあったが、{ph2}{d2}もあった。"
