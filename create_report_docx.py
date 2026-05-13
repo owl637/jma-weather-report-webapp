@@ -212,7 +212,7 @@ def format_value_with_unit(value_text, element_name):
     text = str(value_text).strip()
     unit = extract_unit(element_name)
     unit_map = {
-        'mm': 'ミリ',
+        'mm': 'mm',
         'h': '時間',
         '％': '％',
         '%': '％',
@@ -320,12 +320,13 @@ def collect_rank_updates(year, month):
                     comparison_entry = parse_rank_entry(row.get(comparison_column, '')) if comparison_column else None
                     previous_column = '2位' if rank == 1 else '1位'
                     previous_entry = parse_rank_entry(row.get(previous_column, ''))
-                    action = determine_update_action(rank, entry, previous_entry)
 
                     current_value = extract_numeric_value(entry['value'])
                     comparison_value = extract_numeric_value(comparison_entry['value']) if comparison_entry else None
                     is_tied_with_lower_rank = current_value is not None and comparison_value is not None and current_value == comparison_value
-                    display_value = entry['value'] + '*' if is_tied_with_lower_rank else entry['value']
+                    action = 'recorded' if rank == 1 and is_tied_with_lower_rank else determine_update_action(rank, entry, previous_entry)
+                    display_value = entry['value']
+                    table_display_value = entry['value'] + '*' if is_tied_with_lower_rank else entry['value']
                     update_item = {
                         'station': station_name,
                         'station_display': get_station_display_name(station_name),
@@ -333,6 +334,7 @@ def collect_rank_updates(year, month):
                         'source_order': row_index,
                         'element': re.sub(r'\s+', ' ', element).strip(),
                         'updated_value': display_value,
+                        'updated_value_table': table_display_value,
                         'observed_date': format_rank_date(entry['date_text']),
                         'rank': rank,
                         'extreme_value': previous_entry['value'] if previous_entry else PLACEHOLDER_TEXT,
@@ -561,11 +563,14 @@ def build_sections(year, month, rank_updates, gaikyo_sentences):
         records = df.to_dict(orient='records')
         summary = build_summary_text(period_name, gaikyo_sentences)
         overview, baiu_footnote = build_section_paragraphs(records, summary, period_name, year, month, rank_updates)
+        extreme_sentence = overview[1] if len(overview) > 1 else ''
+        editable_summary = summary if not extreme_sentence else f'{summary} {extreme_sentence}'
+        display_overview = [overview[0]] + overview[2:] if len(overview) > 2 else ([overview[0]] if overview else [])
         sections.append({
             'name': period_name,
-            'summary': summary,
+            'summary': editable_summary,
             'caption': build_table_caption(period_name, month),
-            'overview': overview,
+            'overview': display_overview,
             'baiu_footnote': baiu_footnote,
             'columns': columns,
             'column_classes': column_classes,
@@ -586,7 +591,7 @@ def build_extreme_table_rows(update_items):
         [
             item['station'],
             item['element'],
-            item['updated_value'],
+            item.get('updated_value_table', item['updated_value']),
             item['observed_date'],
             str(item['rank']),
             item['extreme_value'],
