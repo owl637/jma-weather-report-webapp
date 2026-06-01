@@ -1,9 +1,10 @@
 name: Monthly JMA Data Download
 
 on:
-  # 毎月1日 09:00 JST (= 00:00 UTC) に自動実行
+  # 毎月1日 09:00 JST (= 00:00 UTC) と 12:00 JST (= 03:00 UTC) に自動実行
   schedule:
     - cron: '0 0 1 * *'
+    - cron: '0 3 1 * *'
   # 手動実行（任意の年月を指定可能）
   workflow_dispatch:
     inputs:
