@@ -2,8 +2,8 @@ name: Monthly Finalize Gaikyo CSV
 
 on:
   schedule:
-    # 毎月1日 JST 13:30 (= UTC 1日 04:30) に前月分を確定
-    - cron: '30 4 1 * *'
+    # 毎月1日 JST 10:00 (= UTC 1日 01:00) に前月分を確定
+    - cron: '0 1 1 * *'
   workflow_dispatch:
     inputs:
       month:
